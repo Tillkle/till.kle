@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+from io import BytesIO
+from fpdf import FPDF
 
 st.title("CSO vs Individual Comparison")
 
@@ -7,6 +9,34 @@ st.markdown("Upload the **CSO** and **Individual** CSV files below:")
 
 cso_file = st.file_uploader("Upload CSO CSV", type="csv")
 indi_file = st.file_uploader("Upload Individual CSV", type="csv")
+
+def create_pdf(df1, df2):
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+
+    def add_table(title, df):
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(200, 10, txt=title, ln=True, align='L')
+        pdf.set_font("Arial", size=10)
+        col_widths = [50, 40, 40, 40]
+        header = df.columns.tolist()
+        for i, col in enumerate(header):
+            pdf.cell(col_widths[i], 10, col, border=1)
+        pdf.ln()
+        for _, row in df.iterrows():
+            for i, col in enumerate(row):
+                pdf.cell(col_widths[i], 10, str(col), border=1)
+            pdf.ln()
+
+    add_table("🌱 Plant Comparison", df1)
+    pdf.ln(5)
+    add_table("⏱️ Activity Hours Comparison", df2)
+
+    output = BytesIO()
+    pdf.output(output)
+    return output.getvalue()
 
 if cso_file and indi_file:
     # Load files
@@ -20,7 +50,6 @@ if cso_file and indi_file:
     cso_plants.columns = ['Type', 'Quantity']
     indi_plants.columns = ['Type', 'Quantity']
 
-    # ✅ Remove commas and convert to numbers
     cso_plants['Quantity'] = (
         cso_plants['Quantity']
         .astype(str)
@@ -47,7 +76,7 @@ if cso_file and indi_file:
     st.markdown("### 🌱 Plant Comparison")
     st.dataframe(plant_result)
 
-    # --- Activity Comparison ---
+    # --- Activity Comparison (including non-planting items) ---
     cso_activities = cso_df.iloc[:, [23, 24]].dropna()
     indi_activities = indi_df.iloc[:, [41, 42]].dropna()
 
@@ -71,6 +100,15 @@ if cso_file and indi_file:
     }])
     act_result = pd.concat([act_comparison, act_total], ignore_index=True)
 
-    st.markdown("### ⏱️ Activity Hours Comparison")
+    st.markdown("### ⏱️ Activity Hours Comparison (incl. non-planting)")
     st.dataframe(act_result)
+
+    # --- PDF Export ---
+    pdf_bytes = create_pdf(plant_result, act_result)
+    st.download_button(
+        label="📄 Download PDF Report",
+        data=pdf_bytes,
+        file_name="comparison_report.pdf",
+        mime="application/pdf"
+    )
 
