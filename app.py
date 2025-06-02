@@ -73,25 +73,30 @@ if cso_file and indi_file:
     st.markdown("### ⏱️ Activity Hours Comparison")
     st.dataframe(act_result)
 
-    # --- Non-Planting Items Comparison ---
+        # --- Non-Planting Items Comparison ---
+    # Individual non-planting items (Column T, U => index 19, 20)
     indi_nonplant = indi_df.iloc[:, [19, 20]].dropna()
     indi_nonplant.columns = ['Item', 'Quantity']
     indi_nonplant['Quantity'] = pd.to_numeric(indi_nonplant['Quantity'], errors='coerce').fillna(0)
 
+    # CSO non-planting items (Column AK, AL => index 36, 37)
+    cso_nonplant = cso_df.iloc[:, [36, 37]].dropna()
+    cso_nonplant.columns = ['Item', 'Quantity']
+    cso_nonplant['Quantity'] = pd.to_numeric(cso_nonplant['Quantity'], errors='coerce').fillna(0)
+
     indi_np_summary = indi_nonplant.groupby('Item', as_index=False).sum()
-    indi_np_total = indi_np_summary['Quantity'].sum()
+    cso_np_summary = cso_nonplant.groupby('Item', as_index=False).sum()
 
-    if 'Totals - Stakes/Ties/Jute/Guards' in cso_df.columns:
-        cso_np_total = pd.to_numeric(cso_df['Totals - Stakes/Ties/Jute/Guards'], errors='coerce').fillna(0).sum()
-    else:
-        cso_np_total = 0
+    np_comparison = pd.merge(cso_np_summary, indi_np_summary, on='Item', how='outer', suffixes=('_CSO', '_Individual')).fillna(0)
+    np_comparison['Difference'] = np_comparison['Quantity_Individual'] - np_comparison['Quantity_CSO']
 
-    nonplant_result = pd.DataFrame([{
+    np_total = pd.DataFrame([{
         'Item': 'TOTAL Non-Planting Items',
-        'Quantity_CSO': cso_np_total,
-        'Quantity_Individual': indi_np_total,
-        'Difference': indi_np_total - cso_np_total
+        'Quantity_CSO': np_comparison['Quantity_CSO'].sum(),
+        'Quantity_Individual': np_comparison['Quantity_Individual'].sum(),
+        'Difference': np_comparison['Difference'].sum()
     }])
+    nonplant_result = pd.concat([np_comparison, np_total], ignore_index=True)
 
     st.markdown("### 🛠️ Non-Planting Items Comparison")
     st.dataframe(nonplant_result)
