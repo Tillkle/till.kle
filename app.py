@@ -66,6 +66,3 @@ if cso_file and indi_file:
     st.markdown("### Activity Hours Comparison")
     st.dataframe(final_act_comparison)
 
-    st.dataframe(hour_comparison)
-    st.markdown(f"**Total Hour Difference: {total_diff_hours:.2f}**")
-
