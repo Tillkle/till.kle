@@ -20,7 +20,14 @@ if cso_file and indi_file:
     cso_plants.columns = ['Type', 'Quantity']
     indi_plants.columns = ['Type', 'Quantity']
 
-    cso_plants['Quantity'] = pd.to_numeric(cso_plants['Quantity'], errors='coerce').fillna(0)
+    # ✅ Remove commas and convert to numbers
+    cso_plants['Quantity'] = (
+        cso_plants['Quantity']
+        .astype(str)
+        .str.replace(",", "", regex=False)
+        .str.strip()
+        .astype(float)
+    )
     indi_plants['Quantity'] = pd.to_numeric(indi_plants['Quantity'], errors='coerce').fillna(0)
 
     cso_summary = cso_plants.groupby('Type', as_index=False).sum()
@@ -35,7 +42,6 @@ if cso_file and indi_file:
         'Quantity_Individual': plant_comparison['Quantity_Individual'].sum(),
         'Difference': plant_comparison['Difference'].sum()
     }])
-
     plant_result = pd.concat([plant_comparison, total_row], ignore_index=True)
 
     st.markdown("### 🌱 Plant Comparison")
@@ -63,7 +69,6 @@ if cso_file and indi_file:
         'Quantity_Individual': act_comparison['Quantity_Individual'].sum(),
         'Difference': act_comparison['Difference'].sum()
     }])
-
     act_result = pd.concat([act_comparison, act_total], ignore_index=True)
 
     st.markdown("### ⏱️ Activity Hours Comparison")
