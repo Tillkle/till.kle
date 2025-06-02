@@ -12,9 +12,23 @@ if cso_file and indi_file:
     cso_df = pd.read_csv(cso_file)
     indi_df = pd.read_csv(indi_file)
 
-    # Extract plant type and quantities
-    cso_plants = cso_df.iloc[:, [11, 12]].dropna()
-    indi_plants = indi_df.iloc[:, [22, 23]].dropna()
+    # Strip column names of leading/trailing whitespace
+    cso_df.columns = cso_df.columns.str.strip()
+    indi_df.columns = indi_df.columns.str.strip()
+
+    # Show column names for debugging (optional)
+    # st.write("CSO Columns:", cso_df.columns.tolist())
+    # st.write("Individual Columns:", indi_df.columns.tolist())
+
+    # Use column names instead of indexes
+    plant_type_col = 'Plant Type'
+    plant_qty_col = 'Plant Quantity'
+    activity_type_col = 'Activity Type'
+    activity_qty_col = 'Activity Quantity'
+
+    # Extract plant data
+    cso_plants = cso_df[[plant_type_col, plant_qty_col]].dropna()
+    indi_plants = indi_df[[plant_type_col, plant_qty_col]].dropna()
     cso_plants.columns = ['Type', 'Quantity']
     indi_plants.columns = ['Type', 'Quantity']
 
@@ -37,8 +51,8 @@ if cso_file and indi_file:
     final_comparison = pd.concat([comparison, total_row], ignore_index=True)
 
     # Extract activity data
-    cso_activity = cso_df.iloc[:, [23, 24]].dropna()
-    indi_activity = indi_df.iloc[:, [41, 42]].dropna()
+    cso_activity = cso_df[[activity_type_col, activity_qty_col]].dropna()
+    indi_activity = indi_df[[activity_type_col, activity_qty_col]].dropna()
     cso_activity.columns = ['Activity', 'Quantity']
     indi_activity.columns = ['Activity', 'Quantity']
 
@@ -64,5 +78,7 @@ if cso_file and indi_file:
     st.dataframe(final_comparison)
 
     st.markdown("### Activity Hours Comparison")
+    st.dataframe(final_act_comparison)
+
     st.dataframe(final_act_comparison)
 
