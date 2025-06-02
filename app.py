@@ -21,8 +21,8 @@ if cso_file and indi_file:
     indi_df.columns = indi_df.columns.str.strip()
 
     # Extract plant data
-    cso_plants = cso_df.iloc[:, [11, 12]].dropna()  # Columns L (11) and M (12)
-    indi_plants = indi_df.iloc[:, [22, 23]].dropna()  # Columns W (22) and X (23)
+    cso_plants = cso_df[['Plant Type', 'Plant Quantity']].dropna()
+    indi_plants = indi_df[['Plant Type', 'Plant Quantity']].dropna()
     cso_plants.columns = ['Type', 'Quantity']
     indi_plants.columns = ['Type', 'Quantity']
 
