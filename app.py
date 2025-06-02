@@ -75,35 +75,30 @@ if cso_file and indi_file:
     st.dataframe(act_result)
 
     # --- Non-Planting Items Comparison ---
-    cso_nonplant = cso_df.iloc[:, [13, 14]].dropna()
-    indi_nonplant = indi_df.iloc[:, [24, 25]].dropna()
+cso_nonplant = cso_df.iloc[:, [13, 14]].dropna()
+indi_nonplant = indi_df.iloc[:, [24, 25]].dropna()
 
-    cso_nonplant.columns = ['Item', 'Quantity']
-    indi_nonplant.columns = ['Item', 'Quantity']
+cso_nonplant.columns = ['Item', 'Quantity']
+indi_nonplant.columns = ['Item', 'Quantity']
 
-    cso_nonplant['Quantity'] = (
-        cso_nonplant['Quantity']
-        .astype(str)
-        .str.replace(",", "", regex=False)
-        .str.strip()
-        .astype(float)
-    )
-    indi_nonplant['Quantity'] = pd.to_numeric(indi_nonplant['Quantity'], errors='coerce').fillna(0)
+cso_nonplant['Quantity'] = pd.to_numeric(cso_nonplant['Quantity'], errors='coerce').fillna(0)
+indi_nonplant['Quantity'] = pd.to_numeric(indi_nonplant['Quantity'], errors='coerce').fillna(0)
 
-    cso_np_summary = cso_nonplant.groupby('Item', as_index=False).sum()
-    indi_np_summary = indi_nonplant.groupby('Item', as_index=False).sum()
+cso_np_summary = cso_nonplant.groupby('Item', as_index=False).sum()
+indi_np_summary = indi_nonplant.groupby('Item', as_index=False).sum()
 
-    nonplant_comparison = pd.merge(cso_np_summary, indi_np_summary, on='Item', how='outer', suffixes=('_CSO', '_Individual')).fillna(0)
-    nonplant_comparison['Difference'] = nonplant_comparison['Quantity_Individual'] - nonplant_comparison['Quantity_CSO']
+nonplant_comparison = pd.merge(cso_np_summary, indi_np_summary, on='Item', how='outer', suffixes=('_CSO', '_Individual')).fillna(0)
+nonplant_comparison['Difference'] = nonplant_comparison['Quantity_Individual'] - nonplant_comparison['Quantity_CSO']
 
-    np_total = pd.DataFrame([{
-        'Item': 'TOTAL Non-Planting Items',
-        'Quantity_CSO': nonplant_comparison['Quantity_CSO'].sum(),
-        'Quantity_Individual': nonplant_comparison['Quantity_Individual'].sum(),
-        'Difference': nonplant_comparison['Difference'].sum()
-    }])
-    nonplant_result = pd.concat([nonplant_comparison, np_total], ignore_index=True)
+np_total = pd.DataFrame([{
+    'Item': 'TOTAL Non-Planting Items',
+    'Quantity_CSO': nonplant_comparison['Quantity_CSO'].sum(),
+    'Quantity_Individual': nonplant_comparison['Quantity_Individual'].sum(),
+    'Difference': nonplant_comparison['Difference'].sum()
+}])
+nonplant_result = pd.concat([nonplant_comparison, np_total], ignore_index=True)
 
-    st.markdown("### 🛠️ Non-Planting Items Comparison")
-    st.dataframe(nonplant_result)
+st.markdown("### 🛠️ Non-Planting Items Comparison")
+st.dataframe(nonplant_result)
+
 
