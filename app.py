@@ -1,71 +1,71 @@
 import streamlit as st
 import pandas as pd
 
+st.title("CSO vs Individual Comparison App")
 
-def clean_and_format(df):
-    df.columns = df.columns.str.strip()
-    return df
+st.markdown("Upload the CSO and Individual CSV files to compare:")
 
-
-def parse_plant_types(df, type_col, qty_col):
-    plant_data = df[[type_col, qty_col]].dropna()
-    plant_data[qty_col] = pd.to_numeric(plant_data[qty_col], errors='coerce').fillna(0)
-    return plant_data.groupby(type_col)[qty_col].sum().astype(int)
-
-
-def parse_activity_hours(df, activity_col, qty_col):
-    activity_data = df[[activity_col, qty_col]].dropna()
-    activity_data[qty_col] = pd.to_numeric(activity_data[qty_col], errors='coerce').fillna(0)
-    return activity_data.groupby(activity_col)[qty_col].sum()
-
-
-def compare_series(individual, cso):
-    all_keys = set(individual.index).union(cso.index)
-    data = []
-    for key in sorted(all_keys):
-        ind_val = individual.get(key, 0)
-        cso_val = cso.get(key, 0)
-        diff = ind_val - cso_val
-        data.append((key, ind_val, cso_val, diff))
-    return pd.DataFrame(data, columns=["Type", "Individual", "CSO", "Difference"])
-
-
-st.title("🌱 CSO vs Individual Planting Comparison Tool")
-
-individual_file = st.file_uploader("Upload Individual CSV", type=["csv"])
 cso_file = st.file_uploader("Upload CSO CSV", type=["csv"])
+indi_file = st.file_uploader("Upload Individual CSV", type=["csv"])
 
-if individual_file and cso_file:
-    ind_df = clean_and_format(pd.read_csv(individual_file))
-    cso_df = clean_and_format(pd.read_csv(cso_file))
+if cso_file and indi_file:
+    cso_df = pd.read_csv(cso_file)
+    indi_df = pd.read_csv(indi_file)
 
-    # Get column names based on Excel-style references
-    ind_type_col = ind_df.columns[22]  # W
-    ind_qty_col = ind_df.columns[23]  # X
-    cso_type_col = cso_df.columns[11]  # L
-    cso_qty_col = cso_df.columns[12]  # M
+    # Extract plant type and quantities
+    cso_plants = cso_df.iloc[:, [11, 12]].dropna()
+    indi_plants = indi_df.iloc[:, [22, 23]].dropna()
+    cso_plants.columns = ['Type', 'Quantity']
+    indi_plants.columns = ['Type', 'Quantity']
 
-    ind_plants = parse_plant_types(ind_df, ind_type_col, ind_qty_col)
-    cso_plants = parse_plant_types(cso_df, cso_type_col, cso_qty_col)
-    plant_comparison = compare_series(ind_plants, cso_plants)
-    total_diff_plants = plant_comparison["Difference"].sum()
+    cso_plants['Quantity'] = pd.to_numeric(cso_plants['Quantity'], errors='coerce').fillna(0)
+    indi_plants['Quantity'] = pd.to_numeric(indi_plants['Quantity'], errors='coerce').fillna(0)
 
-    # Activity Hours Columns
-    ind_act_col = ind_df.columns[41]  # AP
-    ind_act_qty = ind_df.columns[42]  # AQ
-    cso_act_col = cso_df.columns[23]  # X
-    cso_act_qty = cso_df.columns[24]  # Y
+    cso_summary = cso_plants.groupby('Type', as_index=False).sum()
+    indi_summary = indi_plants.groupby('Type', as_index=False).sum()
 
-    ind_hours = parse_activity_hours(ind_df, ind_act_col, ind_act_qty)
-    cso_hours = parse_activity_hours(cso_df, cso_act_col, cso_act_qty)
-    hour_comparison = compare_series(ind_hours, cso_hours)
-    total_diff_hours = hour_comparison["Difference"].sum()
+    comparison = pd.merge(cso_summary, indi_summary, on='Type', how='outer', suffixes=('_CSO', '_Individual')).fillna(0)
+    comparison['Difference'] = comparison['Quantity_Individual'] - comparison['Quantity_CSO']
 
-    st.subheader("🪴 Plant Type Comparison")
-    st.dataframe(plant_comparison)
-    st.markdown(f"**Total Plant Difference: {total_diff_plants}**")
+    total_row = pd.DataFrame([{
+        'Type': 'TOTAL Plants',
+        'Quantity_CSO': comparison['Quantity_CSO'].sum(),
+        'Quantity_Individual': comparison['Quantity_Individual'].sum(),
+        'Difference': comparison['Difference'].sum()
+    }])
 
-    st.subheader("⏱️ Activity Hours Comparison")
+    final_comparison = pd.concat([comparison, total_row], ignore_index=True)
+
+    # Extract activity data
+    cso_activity = cso_df.iloc[:, [23, 24]].dropna()
+    indi_activity = indi_df.iloc[:, [41, 42]].dropna()
+    cso_activity.columns = ['Activity', 'Quantity']
+    indi_activity.columns = ['Activity', 'Quantity']
+
+    cso_activity['Quantity'] = pd.to_numeric(cso_activity['Quantity'], errors='coerce').fillna(0)
+    indi_activity['Quantity'] = pd.to_numeric(indi_activity['Quantity'], errors='coerce').fillna(0)
+
+    act_cso_summary = cso_activity.groupby('Activity', as_index=False).sum()
+    act_indi_summary = indi_activity.groupby('Activity', as_index=False).sum()
+
+    act_comparison = pd.merge(act_cso_summary, act_indi_summary, on='Activity', how='outer', suffixes=('_CSO', '_Individual')).fillna(0)
+    act_comparison['Difference'] = act_comparison['Quantity_Individual'] - act_comparison['Quantity_CSO']
+
+    act_total_row = pd.DataFrame([{
+        'Activity': 'TOTAL Hours',
+        'Quantity_CSO': act_comparison['Quantity_CSO'].sum(),
+        'Quantity_Individual': act_comparison['Quantity_Individual'].sum(),
+        'Difference': act_comparison['Difference'].sum()
+    }])
+
+    final_act_comparison = pd.concat([act_comparison, act_total_row], ignore_index=True)
+
+    st.markdown("### Plant Type Comparison")
+    st.dataframe(final_comparison)
+
+    st.markdown("### Activity Hours Comparison")
+    st.dataframe(final_act_comparison)
+
     st.dataframe(hour_comparison)
     st.markdown(f"**Total Hour Difference: {total_diff_hours:.2f}**")
 
