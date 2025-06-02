@@ -20,6 +20,7 @@ if cso_file and indi_file:
     cso_plants.columns = ['Type', 'Quantity']
     indi_plants.columns = ['Type', 'Quantity']
 
+    # ✅ Remove commas and convert to numbers
     cso_plants['Quantity'] = (
         cso_plants['Quantity']
         .astype(str)
@@ -72,29 +73,6 @@ if cso_file and indi_file:
 
     st.markdown("### ⏱️ Activity Hours Comparison")
     st.dataframe(act_result)
-
-    # --- Non-Planting Items Comparison ---
-    indi_nonplant = indi_df.iloc[:, [19, 20]].dropna()
-    indi_nonplant.columns = ['Item', 'Quantity']
-    indi_nonplant['Quantity'] = pd.to_numeric(indi_nonplant['Quantity'], errors='coerce').fillna(0)
-
-    indi_np_summary = indi_nonplant.groupby('Item', as_index=False).sum()
-    indi_np_total = indi_np_summary['Quantity'].sum()
-
-    if 'Totals - Stakes/Ties/Jute/Guards' in cso_df.columns:
-        cso_np_total = pd.to_numeric(cso_df['Totals - Stakes/Ties/Jute/Guards'], errors='coerce').fillna(0).sum()
-    else:
-        cso_np_total = 0
-
-    nonplant_result = pd.DataFrame([{
-        'Item': 'TOTAL Non-Planting Items',
-        'Quantity_CSO': cso_np_total,
-        'Quantity_Individual': indi_np_total,
-        'Difference': indi_np_total - cso_np_total
-    }])
-
-    st.markdown("### 🛠️ Non-Planting Items Comparison")
-    st.dataframe(nonplant_result)
 
 
 
