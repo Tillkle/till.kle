@@ -20,6 +20,7 @@ if cso_file and indi_file:
     cso_plants.columns = ['Type', 'Quantity']
     indi_plants.columns = ['Type', 'Quantity']
 
+    # ✅ Remove commas and convert to numbers
     cso_plants['Quantity'] = (
         cso_plants['Quantity']
         .astype(str)
@@ -105,5 +106,4 @@ if cso_file and indi_file:
 
     st.markdown("### 🛠️ Non-Planting Items Comparison")
     st.dataframe(nonplant_result)
-
 
