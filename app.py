@@ -73,8 +73,9 @@ if cso_file and indi_file:
     st.markdown("### ⏱️ Activity Hours Comparison")
     st.dataframe(act_result)
 
-    # --- Non-Planting Items Comparison ---
-    cso_nonplant = cso_df[[" - Type.1", " - Quantity.1"]].dropna()
+      # --- Non-Planting Items Comparison ---
+    # Column indices for CSO non-planting items (AK and AL = index 36 and 37)
+    cso_nonplant = cso_df.iloc[:, [36, 37]].dropna()
     indi_nonplant = indi_df[[" - Type.1", " - Quantity"]].dropna()
 
     cso_nonplant.columns = ['Item', 'Quantity']
@@ -99,6 +100,7 @@ if cso_file and indi_file:
 
     st.markdown("### 🛠️ Non-Planting Items Comparison")
     st.dataframe(nonplant_result)
+
 
 
 
