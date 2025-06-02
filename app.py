@@ -74,28 +74,17 @@ if cso_file and indi_file:
     st.dataframe(act_result)
 
     # --- Non-Planting Items Comparison ---
-    nonplant_items = [
-        "a) Jute (manual/folds)", "b) Jute (manual/no folds)", "c) Jute (cobber/folds)",
-        "d) Jute (cobber/no folds)", "e) Tie (indiv.)", "f) Stake (indiv.) less than 2m",
-        "g) Stake (indiv.) more than 2m", "h) Guard (1x HW/Corflute)", "i) Guard (3x HW/Corflute)",
-        "j) Guard (3x bamboo/plastic)", "k) Guard (2x bamboo/plastic)",
-        "l) Bamboo stake marker (indiv.)", "m) Hardwood stake marker (indiv.)"
-    ]
+    cso_nonplant = cso_df[[" - Type.1", " - Quantity.1"]].dropna()
+    indi_nonplant = indi_df[[" - Type.1", " - Quantity"]].dropna()
 
-    indi_nonplant = indi_df.iloc[:, [19, 20]].dropna()
-    cso_nonplant = cso_df.iloc[:, [36, 37]].dropna()
-
-    indi_nonplant.columns = ['Item', 'Quantity']
     cso_nonplant.columns = ['Item', 'Quantity']
+    indi_nonplant.columns = ['Item', 'Quantity']
 
-    indi_nonplant = indi_nonplant[indi_nonplant['Item'].isin(nonplant_items)]
-    cso_nonplant = cso_nonplant[cso_nonplant['Item'].isin(nonplant_items)]
-
-    indi_nonplant['Quantity'] = pd.to_numeric(indi_nonplant['Quantity'], errors='coerce').fillna(0)
     cso_nonplant['Quantity'] = pd.to_numeric(cso_nonplant['Quantity'], errors='coerce').fillna(0)
+    indi_nonplant['Quantity'] = pd.to_numeric(indi_nonplant['Quantity'], errors='coerce').fillna(0)
 
-    indi_np_summary = indi_nonplant.groupby('Item', as_index=False).sum()
     cso_np_summary = cso_nonplant.groupby('Item', as_index=False).sum()
+    indi_np_summary = indi_nonplant.groupby('Item', as_index=False).sum()
 
     nonplant_comparison = pd.merge(cso_np_summary, indi_np_summary, on='Item', how='outer', suffixes=('_CSO', '_Individual')).fillna(0)
     nonplant_comparison['Difference'] = nonplant_comparison['Quantity_Individual'] - nonplant_comparison['Quantity_CSO']
@@ -110,6 +99,7 @@ if cso_file and indi_file:
 
     st.markdown("### 🛠️ Non-Planting Items Comparison")
     st.dataframe(nonplant_result)
+
 
 
 
