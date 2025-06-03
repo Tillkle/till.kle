@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import re
 
 st.title("CSO vs Individual Comparison")
 
@@ -8,15 +7,6 @@ st.markdown("Upload the **CSO** and **Individual** CSV files below:")
 
 cso_file = st.file_uploader("Upload CSO CSV", type="csv")
 indi_file = st.file_uploader("Upload Individual CSV", type="csv")
-
-def clean_item_name(name):
-    if pd.isna(name):
-        return ""
-    name = str(name).lower()
-    name = re.sub(r"^[a-z]\)\s*", "", name)  # remove prefixes like 'e) '
-    name = re.sub(r"\(.*?\)", "", name)      # remove anything in brackets
-    name = re.sub(r"\s+", " ", name)         # normalize whitespace
-    return name.strip()
 
 if cso_file and indi_file:
     # Load files
@@ -37,7 +27,6 @@ if cso_file and indi_file:
         .str.strip()
         .astype(float)
     )
-
     indi_plants['Quantity'] = (
         indi_plants['Quantity']
         .astype(str)
@@ -91,33 +80,42 @@ if cso_file and indi_file:
     st.dataframe(act_result)
 
     # --- Non-Planting Items Comparison ---
+    # Individual: Column AK (index 36) = Type, AL (index 37) = Quantity
+    # CSO: Column T (index 19) = Type, U (index 20) = Quantity
+
     indi_nonplant = indi_df.iloc[:, [36, 37]].dropna()
     cso_nonplant = cso_df.iloc[:, [19, 20]].dropna()
 
     indi_nonplant.columns = ['Item', 'Quantity']
     cso_nonplant.columns = ['Item', 'Quantity']
 
-    # Clean and normalize names
-    indi_nonplant['CleanItem'] = indi_nonplant['Item'].apply(clean_item_name)
-    cso_nonplant['CleanItem'] = cso_nonplant['Item'].apply(clean_item_name)
-
     indi_nonplant['Quantity'] = pd.to_numeric(indi_nonplant['Quantity'], errors='coerce').fillna(0)
     cso_nonplant['Quantity'] = pd.to_numeric(cso_nonplant['Quantity'], errors='coerce').fillna(0)
 
-    indi_np_summary = indi_nonplant.groupby('CleanItem', as_index=False).agg({'Quantity': 'sum'})
-    cso_np_summary = cso_nonplant.groupby('CleanItem', as_index=False).agg({'Quantity': 'sum'})
+    # Normalize names: remove leading codes like "e) "
+    def normalize_name(name):
+        return str(name).split(") ")[-1].strip().lower()
 
-    np_comparison = pd.merge(cso_np_summary, indi_np_summary, on='CleanItem', how='outer', suffixes=('_CSO', '_Individual')).fillna(0)
+    indi_nonplant['MatchKey'] = indi_nonplant['Item'].apply(normalize_name)
+    cso_nonplant['MatchKey'] = cso_nonplant['Item'].apply(normalize_name)
+
+    indi_np_summary = indi_nonplant.groupby('MatchKey', as_index=False)['Quantity'].sum().rename(columns={'Quantity': 'Quantity_Individual'})
+    cso_np_summary = cso_nonplant.groupby('MatchKey', as_index=False)['Quantity'].sum().rename(columns={'Quantity': 'Quantity_CSO'})
+
+    np_comparison = pd.merge(cso_np_summary, indi_np_summary, on='MatchKey', how='outer').fillna(0)
     np_comparison['Difference'] = np_comparison['Quantity_Individual'] - np_comparison['Quantity_CSO']
-    np_comparison = np_comparison.rename(columns={'CleanItem': 'Item'})
+
+    # Keep readable names
+    np_comparison['Item'] = np_comparison['MatchKey'].str.title()
 
     total_np_row = pd.DataFrame([{
         'Item': 'TOTAL Non-Planting Items',
         'Quantity_CSO': np_comparison['Quantity_CSO'].sum(),
         'Quantity_Individual': np_comparison['Quantity_Individual'].sum(),
-        'Difference': np_comparison['Difference'].sum()
+        'Difference': np_comparison['Difference'].sum(),
+        'MatchKey': ''
     }])
-    nonplant_result = pd.concat([np_comparison, total_np_row], ignore_index=True)
+    nonplant_result = pd.concat([np_comparison, total_np_row], ignore_index=True)[['Item', 'Quantity_CSO', 'Quantity_Individual', 'Difference']]
 
     st.markdown("### 🛠️ Non-Planting Items Comparison")
     st.dataframe(nonplant_result)
