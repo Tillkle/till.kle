@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-st.title("🌱 Planting Data Comparison Tool")
+st.title("🌱 Planting & Non-Planting Comparison Tool")
 
 # Upload files
 cso_file = st.file_uploader("Upload CSO File", type="csv")
@@ -11,100 +11,56 @@ if cso_file and indi_file:
     cso_df = pd.read_csv(cso_file)
     indi_df = pd.read_csv(indi_file)
 
-    # --- Clean up comma-strings and convert columns to numeric where needed
-    for col in ['Quantity']:
-        for df in [cso_df, indi_df]:
-            if col in df.columns:
-                df[col] = df[col].astype(str).str.replace(',', '').astype(float)
+    # --- PLANTING COMPARISON ---
+    try:
+        planting_cols = ['Strata', 'Type', 'Quantity']
 
-    # --------------------------
-    # 1. Planting Comparison
-    # --------------------------
-    planting_cols = ['Strata', 'Type', 'Quantity']
-    if all(col in cso_df.columns for col in planting_cols) and all(col in indi_df.columns for col in planting_cols):
         cso_plants = cso_df[planting_cols].groupby(['Strata', 'Type']).sum().reset_index()
         indi_plants = indi_df[planting_cols].groupby(['Strata', 'Type']).sum().reset_index()
 
-        merged_plants = pd.merge(cso_plants, indi_plants, on=['Strata', 'Type'], how='outer', suffixes=('_CSO', '_Individual')).fillna(0)
-        merged_plants['Difference'] = merged_plants['Quantity_CSO'] - merged_plants['Quantity_Individual']
+        plant_result = pd.merge(cso_plants, indi_plants, on=['Strata', 'Type'], how='outer', suffixes=('_CSO', '_Individual')).fillna(0)
+        plant_result['Difference'] = plant_result['Quantity_CSO'] - plant_result['Quantity_Individual']
 
-        st.subheader("🌿 Planting Comparison")
-        st.dataframe(merged_plants)
+        st.markdown("### 🌿 Planting Comparison")
+        st.dataframe(plant_result)
+    except Exception as e:
+        st.error(f"Planting comparison failed: {e}")
 
-    else:
-        st.warning("Missing required columns for planting data.")
-
-    # --------------------------
-    # 2. Non-Planting Items Comparison
-    # --------------------------
-    np_items = [
-        "a) Jute (manual/folds)",
-        "b) Jute (manual/no folds)",
-        "c) Jute (cobber/folds)",
-        "d) Jute (cobber/no folds)",
-        "e) Tie (indiv.)",
-        "f) Stake (indiv.) less than 2m",
-        "g) Stake (indiv.) more than 2m",
-        "h) Guard (1x HW/Corflute)",
-        "i) Guard (3x HW/Corflute)",
-        "j) Guard (3x bamboo/plastic)",
-        "k) Guard (2x bamboo/plastic)",
-        "l) Bamboo stake marker (indiv.)",
-        "m) Hardwood stake marker (indiv.)"
-    ]
-
-    # CSO: Column AK (36), AL (37)
-    # IND: Column T (19), U (20)
+    # --- NON-PLANTING ITEMS COMPARISON ---
     try:
+        non_planting_types = [
+            "a) Jute (manual/folds)", "b) Jute (manual/no folds)",
+            "c) Jute (cobber/folds)", "d) Jute (cobber/no folds)",
+            "e) Tie (indiv.)", "f) Stake (indiv.) less than 2m",
+            "g) Stake (indiv.) more than 2m", "h) Guard (1x HW/Corflute)",
+            "i) Guard (3x HW/Corflute)", "j) Guard (3x bamboo/plastic)",
+            "k) Guard (2x bamboo/plastic)", "l) Bamboo stake marker (indiv.)",
+            "m) Hardwood stake marker (indiv.)"
+        ]
+
+        # CSO: Type in Column AK (36), Quantity in Column AL (37)
         cso_np = cso_df.iloc[:, [36, 37]].dropna()
+        cso_np.columns = ['Type', 'Quantity']
+        cso_np = cso_np[cso_np['Type'].isin(non_planting_types)]
+        cso_np['Quantity'] = pd.to_numeric(cso_np['Quantity'].astype(str).str.replace(',', ''), errors='coerce')
+
+        # IND: Type in Column T (19), Quantity in Column U (20)
         indi_np = indi_df.iloc[:, [19, 20]].dropna()
+        indi_np.columns = ['Type', 'Quantity']
+        indi_np = indi_np[indi_np['Type'].isin(non_planting_types)]
+        indi_np['Quantity'] = pd.to_numeric(indi_np['Quantity'].astype(str).str.replace(',', ''), errors='coerce')
 
-        cso_np.columns = ['Item', 'Quantity']
-        indi_np.columns = ['Item', 'Quantity']
+        cso_np_group = cso_np.groupby('Type').sum().reset_index()
+        indi_np_group = indi_np.groupby('Type').sum().reset_index()
 
-        # Clean commas and convert to numeric
-        cso_np['Quantity'] = cso_np['Quantity'].astype(str).str.replace(',', '').astype(float)
-        indi_np['Quantity'] = indi_np['Quantity'].astype(str).str.replace(',', '').astype(float)
+        np_result = pd.merge(cso_np_group, indi_np_group, on='Type', how='outer', suffixes=('_CSO', '_Individual')).fillna(0)
+        np_result['Difference'] = np_result['Quantity_CSO'] - np_result['Quantity_Individual']
 
-        # Filter for relevant items
-        cso_np = cso_np[cso_np['Item'].isin(np_items)]
-        indi_np = indi_np[indi_np['Item'].isin(np_items)]
-
-        cso_grouped = cso_np.groupby('Item').sum().reset_index()
-        indi_grouped = indi_np.groupby('Item').sum().reset_index()
-
-        np_comparison = pd.merge(cso_grouped, indi_grouped, on='Item', how='outer', suffixes=('_CSO', '_Individual')).fillna(0)
-        np_comparison['Difference'] = np_comparison['Quantity_CSO'] - np_comparison['Quantity_Individual']
-
-        st.subheader("🔧 Non-Planting Items Comparison")
-        st.dataframe(np_comparison)
+        st.markdown("### 🧰 Non-Planting Items Comparison")
+        st.dataframe(np_result)
 
     except Exception as e:
-        st.error(f"Non-planting item comparison failed: {e}")
-
-    # --------------------------
-    # 3. Activity Hours Comparison
-    # --------------------------
-    try:
-        # CSO: Column AP (41), AQ (42)
-        # IND: Column AP (41), AQ (42)
-        cso_activities = cso_df.iloc[:, [41, 42]].dropna()
-        indi_activities = indi_df.iloc[:, [41, 42]].dropna()
-
-        cso_activities.columns = ['Activity', 'Hours']
-        indi_activities.columns = ['Activity', 'Hours']
-
-        cso_activities['Hours'] = cso_activities['Hours'].astype(str).str.replace(',', '').astype(float)
-        indi_activities['Hours'] = indi_activities['Hours'].astype(str).str.replace(',', '').astype(float)
-
-        cso_agg = cso_activities.groupby('Activity').sum().reset_index()
-        indi_agg = indi_activities.groupby('Activity').sum().reset_index()
-
-        activity_comparison = pd.merge(cso_agg, indi_agg, on='Activity', how='outer', suffixes=('_CSO', '_Individual')).fillna(0)
-        activity_comparison['Difference'] = activity_comparison['Hours_CSO'] - activity_comparison['Hours_Individual']
-
-        st.subheader("⏱️ Activity Hours Comparison")
-        st.dataframe(activity_comparison)
+        st.error(f"Non-planting comparison failed: {e}")
 
     except Exception as e:
         st.error(f"Activity hours comparison failed: {e}")
