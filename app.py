@@ -54,7 +54,9 @@ if cso_file and indi_file:
 
     # --- Normalize helper ---
     def normalize_name(name):
-        return str(name).split(") ")[-1].strip().lower()
+        name = str(name).split(") ")[-1].lower().strip()  # remove prefix like "c) "
+        name = name.replace("hours", "").strip()          # remove "hours" word
+        return name
 
     # --- Activity Comparison ---
     cso_activities = cso_df.iloc[:, [23, 24]].dropna()
@@ -89,9 +91,6 @@ if cso_file and indi_file:
     st.dataframe(act_result)
 
     # --- Non-Planting Items Comparison ---
-    # Individual: Column AK (index 36) = Type, AL (index 37) = Quantity
-    # CSO: Column T (index 19) = Type, U (index 20) = Quantity
-
     indi_nonplant = indi_df.iloc[:, [36, 37]].dropna()
     cso_nonplant = cso_df.iloc[:, [19, 20]].dropna()
 
