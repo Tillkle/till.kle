@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import re
 
 st.title("CSO vs Individual Comparison")
 
@@ -7,6 +8,15 @@ st.markdown("Upload the **CSO** and **Individual** CSV files below:")
 
 cso_file = st.file_uploader("Upload CSO CSV", type="csv")
 indi_file = st.file_uploader("Upload Individual CSV", type="csv")
+
+def clean_item_name(name):
+    if pd.isna(name):
+        return ""
+    name = str(name).lower()
+    name = re.sub(r"^[a-z]\)\s*", "", name)  # remove prefixes like 'e) '
+    name = re.sub(r"\(.*?\)", "", name)      # remove anything in brackets
+    name = re.sub(r"\s+", " ", name)         # normalize whitespace
+    return name.strip()
 
 if cso_file and indi_file:
     # Load files
@@ -28,7 +38,6 @@ if cso_file and indi_file:
         .astype(float)
     )
 
-    # ✅ FIXED: properly clean and convert string quantities with commas in individual report
     indi_plants['Quantity'] = (
         indi_plants['Quantity']
         .astype(str)
@@ -82,23 +91,25 @@ if cso_file and indi_file:
     st.dataframe(act_result)
 
     # --- Non-Planting Items Comparison ---
-    # Individual: Column T (index 19) = Type, Column U (index 20) = Quantity
-    # CSO: Column AK (index 36) = Type, Column AL (index 37) = Quantity
-
-    indi_nonplant = indi_df.iloc[:, [19, 20]].dropna()
-    cso_nonplant = cso_df.iloc[:, [36, 37]].dropna()
+    indi_nonplant = indi_df.iloc[:, [36, 37]].dropna()
+    cso_nonplant = cso_df.iloc[:, [19, 20]].dropna()
 
     indi_nonplant.columns = ['Item', 'Quantity']
     cso_nonplant.columns = ['Item', 'Quantity']
 
+    # Clean and normalize names
+    indi_nonplant['CleanItem'] = indi_nonplant['Item'].apply(clean_item_name)
+    cso_nonplant['CleanItem'] = cso_nonplant['Item'].apply(clean_item_name)
+
     indi_nonplant['Quantity'] = pd.to_numeric(indi_nonplant['Quantity'], errors='coerce').fillna(0)
     cso_nonplant['Quantity'] = pd.to_numeric(cso_nonplant['Quantity'], errors='coerce').fillna(0)
 
-    indi_np_summary = indi_nonplant.groupby('Item', as_index=False).sum()
-    cso_np_summary = cso_nonplant.groupby('Item', as_index=False).sum()
+    indi_np_summary = indi_nonplant.groupby('CleanItem', as_index=False).agg({'Quantity': 'sum'})
+    cso_np_summary = cso_nonplant.groupby('CleanItem', as_index=False).agg({'Quantity': 'sum'})
 
-    np_comparison = pd.merge(cso_np_summary, indi_np_summary, on='Item', how='outer', suffixes=('_CSO', '_Individual')).fillna(0)
+    np_comparison = pd.merge(cso_np_summary, indi_np_summary, on='CleanItem', how='outer', suffixes=('_CSO', '_Individual')).fillna(0)
     np_comparison['Difference'] = np_comparison['Quantity_Individual'] - np_comparison['Quantity_CSO']
+    np_comparison = np_comparison.rename(columns={'CleanItem': 'Item'})
 
     total_np_row = pd.DataFrame([{
         'Item': 'TOTAL Non-Planting Items',
