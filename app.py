@@ -52,6 +52,10 @@ if cso_file and indi_file:
     st.markdown("### 🌱 Plant Comparison")
     st.dataframe(plant_result)
 
+    # --- Normalize helper ---
+    def normalize_name(name):
+        return str(name).split(") ")[-1].strip().lower()
+
     # --- Activity Comparison ---
     cso_activities = cso_df.iloc[:, [23, 24]].dropna()
     indi_activities = indi_df.iloc[:, [41, 42]].dropna()
@@ -62,19 +66,24 @@ if cso_file and indi_file:
     cso_activities['Quantity'] = pd.to_numeric(cso_activities['Quantity'], errors='coerce').fillna(0)
     indi_activities['Quantity'] = pd.to_numeric(indi_activities['Quantity'], errors='coerce').fillna(0)
 
-    cso_act_summary = cso_activities.groupby('Activity', as_index=False).sum()
-    indi_act_summary = indi_activities.groupby('Activity', as_index=False).sum()
+    cso_activities['MatchKey'] = cso_activities['Activity'].apply(normalize_name)
+    indi_activities['MatchKey'] = indi_activities['Activity'].apply(normalize_name)
 
-    act_comparison = pd.merge(cso_act_summary, indi_act_summary, on='Activity', how='outer', suffixes=('_CSO', '_Individual')).fillna(0)
+    cso_act_summary = cso_activities.groupby('MatchKey', as_index=False)['Quantity'].sum().rename(columns={'Quantity': 'Quantity_CSO'})
+    indi_act_summary = indi_activities.groupby('MatchKey', as_index=False)['Quantity'].sum().rename(columns={'Quantity': 'Quantity_Individual'})
+
+    act_comparison = pd.merge(cso_act_summary, indi_act_summary, on='MatchKey', how='outer').fillna(0)
     act_comparison['Difference'] = act_comparison['Quantity_Individual'] - act_comparison['Quantity_CSO']
+    act_comparison['Activity'] = act_comparison['MatchKey'].str.title()
 
     act_total = pd.DataFrame([{
         'Activity': 'TOTAL Hours',
         'Quantity_CSO': act_comparison['Quantity_CSO'].sum(),
         'Quantity_Individual': act_comparison['Quantity_Individual'].sum(),
-        'Difference': act_comparison['Difference'].sum()
+        'Difference': act_comparison['Difference'].sum(),
+        'MatchKey': ''
     }])
-    act_result = pd.concat([act_comparison, act_total], ignore_index=True)
+    act_result = pd.concat([act_comparison, act_total], ignore_index=True)[['Activity', 'Quantity_CSO', 'Quantity_Individual', 'Difference']]
 
     st.markdown("### ⏱️ Activity Hours Comparison")
     st.dataframe(act_result)
@@ -92,10 +101,6 @@ if cso_file and indi_file:
     indi_nonplant['Quantity'] = pd.to_numeric(indi_nonplant['Quantity'], errors='coerce').fillna(0)
     cso_nonplant['Quantity'] = pd.to_numeric(cso_nonplant['Quantity'], errors='coerce').fillna(0)
 
-    # Normalize names: remove leading codes like "e) "
-    def normalize_name(name):
-        return str(name).split(") ")[-1].strip().lower()
-
     indi_nonplant['MatchKey'] = indi_nonplant['Item'].apply(normalize_name)
     cso_nonplant['MatchKey'] = cso_nonplant['Item'].apply(normalize_name)
 
@@ -104,8 +109,6 @@ if cso_file and indi_file:
 
     np_comparison = pd.merge(cso_np_summary, indi_np_summary, on='MatchKey', how='outer').fillna(0)
     np_comparison['Difference'] = np_comparison['Quantity_Individual'] - np_comparison['Quantity_CSO']
-
-    # Keep readable names
     np_comparison['Item'] = np_comparison['MatchKey'].str.title()
 
     total_np_row = pd.DataFrame([{
