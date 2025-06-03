@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import re
 
 st.title("CSO vs Individual Comparison")
 
@@ -7,6 +8,15 @@ st.markdown("Upload the **CSO** and **Individual** CSV files below:")
 
 cso_file = st.file_uploader("Upload CSO CSV", type="csv")
 indi_file = st.file_uploader("Upload Individual CSV", type="csv")
+
+# Helper: Normalize names to allow matching
+def normalize_name(name):
+    if pd.isna(name):
+        return ''
+    name = str(name).lower().strip()
+    name = re.sub(r"^[a-z]\)\s*", "", name)  # remove prefixes like "a) "
+    name = name.replace("individual", "").strip()
+    return name
 
 if cso_file and indi_file:
     # Load files
@@ -27,6 +37,7 @@ if cso_file and indi_file:
         .str.strip()
         .astype(float)
     )
+
     indi_plants['Quantity'] = (
         indi_plants['Quantity']
         .astype(str)
@@ -52,13 +63,7 @@ if cso_file and indi_file:
     st.markdown("### 🌱 Plant Comparison")
     st.dataframe(plant_result)
 
-    # --- Normalize helper ---
-    def normalize_name(name):
-        name = str(name).split(") ")[-1].lower().strip()  # remove prefix like "c) "
-        name = name.replace("hours", "").strip()          # remove "hours" word
-        return name
-
-    # --- Activity Comparison ---
+    # --- Activity Hours Comparison ---
     cso_activities = cso_df.iloc[:, [23, 24]].dropna()
     indi_activities = indi_df.iloc[:, [41, 42]].dropna()
 
@@ -91,6 +96,9 @@ if cso_file and indi_file:
     st.dataframe(act_result)
 
     # --- Non-Planting Items Comparison ---
+    # Individual: AK (36) = Type, AL (37) = Quantity
+    # CSO: T (19) = Type, U (20) = Quantity
+
     indi_nonplant = indi_df.iloc[:, [36, 37]].dropna()
     cso_nonplant = cso_df.iloc[:, [19, 20]].dropna()
 
@@ -121,3 +129,4 @@ if cso_file and indi_file:
 
     st.markdown("### 🛠️ Non-Planting Items Comparison")
     st.dataframe(nonplant_result)
+
