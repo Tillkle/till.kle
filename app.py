@@ -13,19 +13,21 @@ indi_file = st.file_uploader("Upload Individual CSV", type="csv")
 def normalize_name(name):
     if pd.isna(name):
         return ''
-    name = str(name).lower()
-    name = re.sub(r"^[a-z]\)\s*", "", name)  # Remove prefixes like "a) "
-    name = re.sub(r"\(.*?\)", "", name)      # Remove anything in parentheses
-    name = re.sub(r"\bindiv(idual)?\b", "", name)  # Remove "indiv"/"individual"
-    name = name.replace("less than", "<")
-    name = re.sub(r"[^a-z0-9<>\s]", "", name)  # Remove punctuation
-    name = re.sub(r"\s+", " ", name)  # Collapse multiple spaces
-    return name.strip()
+    name = str(name).lower().strip()
+    name = re.sub(r"^[a-z]\)\s*", "", name)  # remove prefixes like "a) "
+    name = name.replace("individual", "")
+    name = re.sub(r"[^a-z0-9]+", "", name)  # remove non-alphanumeric characters
+    return name
 
 if cso_file and indi_file:
-    # Load files
     cso_df = pd.read_csv(cso_file)
     indi_df = pd.read_csv(indi_file)
+
+    st.subheader("CSO Columns")
+    st.write(cso_df.columns.tolist())
+
+    st.subheader("Individual Columns")
+    st.write(indi_df.columns.tolist())
 
     # --- 🌱 Plant Comparison ---
     cso_plants = cso_df.iloc[:, [11, 12]].dropna()
@@ -34,8 +36,8 @@ if cso_file and indi_file:
     cso_plants.columns = ['Type', 'Quantity']
     indi_plants.columns = ['Type', 'Quantity']
 
-    cso_plants['Quantity'] = pd.to_numeric(cso_plants['Quantity'].astype(str).str.replace(",", "", regex=False).str.strip(), errors='coerce').fillna(0)
-    indi_plants['Quantity'] = pd.to_numeric(indi_plants['Quantity'].astype(str).str.replace(",", "", regex=False).str.strip(), errors='coerce').fillna(0)
+    cso_plants['Quantity'] = pd.to_numeric(cso_plants['Quantity'].astype(str).str.replace(",", "").str.strip(), errors='coerce').fillna(0)
+    indi_plants['Quantity'] = pd.to_numeric(indi_plants['Quantity'].astype(str).str.replace(",", "").str.strip(), errors='coerce').fillna(0)
 
     cso_plants['MatchKey'] = cso_plants['Type'].apply(normalize_name)
     indi_plants['MatchKey'] = indi_plants['Type'].apply(normalize_name)
