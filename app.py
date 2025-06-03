@@ -28,7 +28,6 @@ if cso_file and indi_file:
         .astype(float)
     )
 
-    # ✅ FIXED: properly clean and convert string quantities with commas in individual report
     indi_plants['Quantity'] = (
         indi_plants['Quantity']
         .astype(str)
@@ -91,8 +90,22 @@ if cso_file and indi_file:
     indi_nonplant.columns = ['Item', 'Quantity']
     cso_nonplant.columns = ['Item', 'Quantity']
 
-    indi_nonplant['Quantity'] = pd.to_numeric(indi_nonplant['Quantity'], errors='coerce').fillna(0)
-    cso_nonplant['Quantity'] = pd.to_numeric(cso_nonplant['Quantity'], errors='coerce').fillna(0)
+    # ✅ FIXED: handle embedded commas in quantities
+    indi_nonplant['Quantity'] = (
+        indi_nonplant['Quantity']
+        .astype(str)
+        .str.replace(",", "", regex=False)
+        .str.strip()
+        .astype(float)
+    )
+
+    cso_nonplant['Quantity'] = (
+        cso_nonplant['Quantity']
+        .astype(str)
+        .str.replace(",", "", regex=False)
+        .str.strip()
+        .astype(float)
+    )
 
     indi_np_summary = indi_nonplant.groupby('Item', as_index=False).sum()
     cso_np_summary = cso_nonplant.groupby('Item', as_index=False).sum()
