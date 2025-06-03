@@ -27,7 +27,15 @@ if cso_file and indi_file:
         .str.strip()
         .astype(float)
     )
-    indi_plants['Quantity'] = pd.to_numeric(indi_plants['Quantity'], errors='coerce').fillna(0)
+
+    # ✅ FIXED: properly clean and convert string quantities with commas in individual report
+    indi_plants['Quantity'] = (
+        indi_plants['Quantity']
+        .astype(str)
+        .str.replace(",", "", regex=False)
+        .str.strip()
+        .astype(float)
+    )
 
     cso_summary = cso_plants.groupby('Type', as_index=False).sum()
     indi_summary = indi_plants.groupby('Type', as_index=False).sum()
@@ -102,7 +110,3 @@ if cso_file and indi_file:
 
     st.markdown("### 🛠️ Non-Planting Items Comparison")
     st.dataframe(nonplant_result)
-
-
-
-
