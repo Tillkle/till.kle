@@ -20,26 +20,22 @@ if cso_file and indi_file:
     cso_plants.columns = ['Type', 'Quantity']
     indi_plants.columns = ['Type', 'Quantity']
 
-    cso_plants['Quantity'] = (
-        cso_plants['Quantity']
-        .astype(str)
-        .str.replace(",", "", regex=False)
-        .str.strip()
-        .astype(float)
-    )
-
-    indi_plants['Quantity'] = (
-        indi_plants['Quantity']
-        .astype(str)
-        .str.replace(",", "", regex=False)
-        .str.strip()
-        .astype(float)
-    )
+    for df in [cso_plants, indi_plants]:
+        df['Quantity'] = (
+            df['Quantity']
+            .astype(str)
+            .str.replace(",", "", regex=False)
+            .str.extract(r'(\d+\.?\d*)')
+            .fillna(0)
+            .astype(float)
+        )
 
     cso_summary = cso_plants.groupby('Type', as_index=False).sum()
     indi_summary = indi_plants.groupby('Type', as_index=False).sum()
 
-    plant_comparison = pd.merge(cso_summary, indi_summary, on='Type', how='outer', suffixes=('_CSO', '_Individual')).fillna(0)
+    plant_comparison = pd.merge(
+        cso_summary, indi_summary, on='Type', how='outer', suffixes=('_CSO', '_Individual')
+    ).fillna(0)
     plant_comparison['Difference'] = plant_comparison['Quantity_Individual'] - plant_comparison['Quantity_CSO']
 
     total_row = pd.DataFrame([{
@@ -60,13 +56,22 @@ if cso_file and indi_file:
     cso_activities.columns = ['Activity', 'Quantity']
     indi_activities.columns = ['Activity', 'Quantity']
 
-    cso_activities['Quantity'] = pd.to_numeric(cso_activities['Quantity'], errors='coerce').fillna(0)
-    indi_activities['Quantity'] = pd.to_numeric(indi_activities['Quantity'], errors='coerce').fillna(0)
+    for df in [cso_activities, indi_activities]:
+        df['Quantity'] = (
+            df['Quantity']
+            .astype(str)
+            .str.replace(",", "", regex=False)
+            .str.extract(r'(\d+\.?\d*)')
+            .fillna(0)
+            .astype(float)
+        )
 
     cso_act_summary = cso_activities.groupby('Activity', as_index=False).sum()
     indi_act_summary = indi_activities.groupby('Activity', as_index=False).sum()
 
-    act_comparison = pd.merge(cso_act_summary, indi_act_summary, on='Activity', how='outer', suffixes=('_CSO', '_Individual')).fillna(0)
+    act_comparison = pd.merge(
+        cso_act_summary, indi_act_summary, on='Activity', how='outer', suffixes=('_CSO', '_Individual')
+    ).fillna(0)
     act_comparison['Difference'] = act_comparison['Quantity_Individual'] - act_comparison['Quantity_CSO']
 
     act_total = pd.DataFrame([{
@@ -90,27 +95,22 @@ if cso_file and indi_file:
     indi_nonplant.columns = ['Item', 'Quantity']
     cso_nonplant.columns = ['Item', 'Quantity']
 
-    # ✅ FIXED: handle embedded commas in quantities
-    indi_nonplant['Quantity'] = (
-        indi_nonplant['Quantity']
-        .astype(str)
-        .str.replace(",", "", regex=False)
-        .str.strip()
-        .astype(float)
-    )
-
-    cso_nonplant['Quantity'] = (
-        cso_nonplant['Quantity']
-        .astype(str)
-        .str.replace(",", "", regex=False)
-        .str.strip()
-        .astype(float)
-    )
+    for df in [indi_nonplant, cso_nonplant]:
+        df['Quantity'] = (
+            df['Quantity']
+            .astype(str)
+            .str.replace(",", "", regex=False)
+            .str.extract(r'(\d+\.?\d*)')
+            .fillna(0)
+            .astype(float)
+        )
 
     indi_np_summary = indi_nonplant.groupby('Item', as_index=False).sum()
     cso_np_summary = cso_nonplant.groupby('Item', as_index=False).sum()
 
-    np_comparison = pd.merge(cso_np_summary, indi_np_summary, on='Item', how='outer', suffixes=('_CSO', '_Individual')).fillna(0)
+    np_comparison = pd.merge(
+        cso_np_summary, indi_np_summary, on='Item', how='outer', suffixes=('_CSO', '_Individual')
+    ).fillna(0)
     np_comparison['Difference'] = np_comparison['Quantity_Individual'] - np_comparison['Quantity_CSO']
 
     total_np_row = pd.DataFrame([{
