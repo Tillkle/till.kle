@@ -13,53 +13,57 @@ indi_file = st.file_uploader("Upload Individual CSV", type="csv")
 def normalize_name(name):
     if pd.isna(name):
         return ''
-    name = str(name).lower()
-    name = re.sub(r"^[a-z]\)\s*", "", name)  # Remove prefixes like "a) "
-    name = re.sub(r"\(.*?\)", "", name)      # Remove anything in parentheses
-    name = re.sub(r"\bindiv(idual)?\b", "", name)  # Remove "indiv"/"individual"
-    name = name.replace("less than", "<")
-    name = re.sub(r"[^a-z0-9<>\s]", "", name)  # Remove punctuation
-    name = re.sub(r"\s+", " ", name)  # Collapse multiple spaces
-    return name.strip()
+    name = str(name).lower().strip()
+    name = re.sub(r"^[a-z]\)\s*", "", name)  # remove prefixes like "a) "
+    name = name.replace("individual", "").strip()
+    return name
 
 if cso_file and indi_file:
     # Load files
     cso_df = pd.read_csv(cso_file)
     indi_df = pd.read_csv(indi_file)
 
-    # --- 🌱 Plant Comparison ---
+    # --- Plant Comparison ---
     cso_plants = cso_df.iloc[:, [11, 12]].dropna()
     indi_plants = indi_df.iloc[:, [22, 23]].dropna()
 
     cso_plants.columns = ['Type', 'Quantity']
     indi_plants.columns = ['Type', 'Quantity']
 
-    cso_plants['Quantity'] = pd.to_numeric(cso_plants['Quantity'].astype(str).str.replace(",", "", regex=False).str.strip(), errors='coerce').fillna(0)
-    indi_plants['Quantity'] = pd.to_numeric(indi_plants['Quantity'].astype(str).str.replace(",", "", regex=False).str.strip(), errors='coerce').fillna(0)
+    cso_plants['Quantity'] = (
+        cso_plants['Quantity']
+        .astype(str)
+        .str.replace(",", "", regex=False)
+        .str.strip()
+        .astype(float)
+    )
 
-    cso_plants['MatchKey'] = cso_plants['Type'].apply(normalize_name)
-    indi_plants['MatchKey'] = indi_plants['Type'].apply(normalize_name)
+    indi_plants['Quantity'] = (
+        indi_plants['Quantity']
+        .astype(str)
+        .str.replace(",", "", regex=False)
+        .str.strip()
+        .astype(float)
+    )
 
-    cso_summary = cso_plants.groupby('MatchKey', as_index=False)['Quantity'].sum().rename(columns={'Quantity': 'Quantity_CSO'})
-    indi_summary = indi_plants.groupby('MatchKey', as_index=False)['Quantity'].sum().rename(columns={'Quantity': 'Quantity_Individual'})
+    cso_summary = cso_plants.groupby('Type', as_index=False).sum()
+    indi_summary = indi_plants.groupby('Type', as_index=False).sum()
 
-    plant_comparison = pd.merge(cso_summary, indi_summary, on='MatchKey', how='outer').fillna(0)
+    plant_comparison = pd.merge(cso_summary, indi_summary, on='Type', how='outer', suffixes=('_CSO', '_Individual')).fillna(0)
     plant_comparison['Difference'] = plant_comparison['Quantity_Individual'] - plant_comparison['Quantity_CSO']
-    plant_comparison['Type'] = plant_comparison['MatchKey'].str.title()
 
     total_row = pd.DataFrame([{
         'Type': 'TOTAL Plants',
         'Quantity_CSO': plant_comparison['Quantity_CSO'].sum(),
         'Quantity_Individual': plant_comparison['Quantity_Individual'].sum(),
-        'Difference': plant_comparison['Difference'].sum(),
-        'MatchKey': ''
+        'Difference': plant_comparison['Difference'].sum()
     }])
-    plant_result = pd.concat([plant_comparison, total_row], ignore_index=True)[['Type', 'Quantity_CSO', 'Quantity_Individual', 'Difference']]
+    plant_result = pd.concat([plant_comparison, total_row], ignore_index=True)
 
     st.markdown("### 🌱 Plant Comparison")
     st.dataframe(plant_result)
 
-    # --- ⏱️ Activity Hours Comparison ---
+    # --- Activity Hours Comparison ---
     cso_activities = cso_df.iloc[:, [23, 24]].dropna()
     indi_activities = indi_df.iloc[:, [41, 42]].dropna()
 
@@ -91,7 +95,10 @@ if cso_file and indi_file:
     st.markdown("### ⏱️ Activity Hours Comparison")
     st.dataframe(act_result)
 
-    # --- 🛠️ Non-Planting Items Comparison ---
+    # --- Non-Planting Items Comparison ---
+    # Individual: AK (36) = Type, AL (37) = Quantity
+    # CSO: T (19) = Type, U (20) = Quantity
+
     indi_nonplant = indi_df.iloc[:, [36, 37]].dropna()
     cso_nonplant = cso_df.iloc[:, [19, 20]].dropna()
 
@@ -122,3 +129,4 @@ if cso_file and indi_file:
 
     st.markdown("### 🛠️ Non-Planting Items Comparison")
     st.dataframe(nonplant_result)
+
